@@ -4,7 +4,9 @@ class PostsController extends AppController {
 	public $components = array('Flash');
 
 	public function index() {
-		$this->set('posts', $this->Post->find('all'));
+		$posts = $this->Post->find('all');
+		$user = $this->Auth->user();
+		$this->set(compact('posts', 'user'));
 	}
 
 	public function view($id = null) {
@@ -16,10 +18,11 @@ class PostsController extends AppController {
 			throw new NotFoundException(__('Invalid post'));
 		}
 		$this->set('post', $post);
+		$this->set('user_name', $this->Auth->user('username'));
 	}
 	public function add() {
 		if ($this->request->is('post')) {
-			$this->Post->create();
+			$this->request->data['Post']['user_id'] = $this->Auth->user('id');
 			if ($this->Post->save($this->request->data)) {
 				$this->Flash->success(__('Your post has been saved.'));
 				return $this->redirect(array('action' => 'index'));
@@ -57,6 +60,18 @@ class PostsController extends AppController {
 			$this->Flash->error(__('The post with id: %s could not be deleted.', h($id)));
 		}
 		return $this->redirect(array('action' => 'index'));
+	}
+	public function isAuthorized($user) {
+		if ($this->action === 'add') {
+			return true;
+		}
+		if (in_array($this->action, array('edit', 'delete'))) {
+			$postId = (int) $this->request->params['pass'][0];
+			if ($this->Post->isOwnedBy($postId, $user['id'])) {
+				return true;
+			}
+		}
+		return false;
 	}
 }
 ?>
